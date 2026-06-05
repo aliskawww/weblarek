@@ -4,3 +4,33 @@ export interface IApi {
     get<T extends object>(uri: string): Promise<T>;
     post<T extends object>(uri: string, data: object, method?: ApiPostMethods): Promise<T>;
 }
+
+export interface IApiOrder {
+  payment: 'card' | 'cash';
+  address: string;
+  email: string;
+  phone: string;
+  items: string[];
+  total: number;
+}
+
+export interface IApiOrderResult {
+  id: string;
+  total: number;
+}
+
+export interface IProduct {
+  id: string;
+  title: string;
+  price: number | null;
+  category: string;
+  description: string;
+  image: string;
+}
+
+export interface IBuyerData {
+    payment: 'card' | 'cash' | null;
+    address: string;
+    email: string;
+    phone: string;
+}

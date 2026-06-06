@@ -1,7 +1,7 @@
 import './scss/styles.scss';
-import { ProductsModel } from './components/base/models/ProductsModel';
-import { CartModel } from './components/base/models/CartModel';
-import { BuyerModel } from './components/base/models/BuyerModel';
+import { ProductsModel } from './models/ProductsModel';
+import { CartModel } from './models/CartModel';
+import { BuyerModel } from './models/BuyerModel';
 import { LarekApi } from './components/base/LarekApi';
 import { API_URL } from './utils/constants';
 import { apiProducts } from './utils/data';
@@ -34,7 +34,7 @@ console.log('add() - добавлен товар, в корзине:', cartModel
 cartModel.add(testProduct2);
 console.log('add() - добавлен ещё один товар, в корзине:', cartModel.getCount(), 'шт.');
 console.log('getItems() - список id товаров в корзине:', cartModel.getItems());
-console.log('getTotal() - общая стоимость:', cartModel.getTotal(productsModel['_items']));
+console.log('getTotal() - общая стоимость:', cartModel.getTotal());
 console.log('contains() - проверка наличия товара:', cartModel.contains(testProduct.id));
 cartModel.remove(testProduct.id);
 console.log('remove() - удалён товар, в корзине:', cartModel.getCount(), 'шт.');

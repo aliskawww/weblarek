@@ -34,3 +34,19 @@ export interface IBuyerData {
     email: string;
     phone: string;
 }
+
+export type PaymentMethod = 'card' | 'cash';
+
+export interface IBuyerData {
+  payment: PaymentMethod | null;
+  address: string;
+  email: string;
+  phone: string;
+}
+
+export type ValidationErrors = Partial<Record<keyof IBuyerData, string>>;
+
+export interface IProductsResponse {
+    total: number;
+    items: IProduct[];
+}

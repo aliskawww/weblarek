@@ -1,10 +1,10 @@
-import { Api } from '../components/base/Api';
+import { IApi } from '../types';
 import { IApiOrder, IApiOrderResult, IProductsResponse } from '../types';
 
 export class LarekApi {
-    private _api: Api;
+    private _api: IApi;
 
-    constructor(api: Api) {  
+    constructor(api: IApi) {  
         this._api = api;
     }
 

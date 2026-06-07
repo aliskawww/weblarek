@@ -28,13 +28,6 @@ export interface IProduct {
   image: string;
 }
 
-export interface IBuyerData {
-    payment: PaymentMethod | null;
-    address: string;
-    email: string;
-    phone: string;
-}
-
 export type PaymentMethod = 'card' | 'cash';
 
 export interface IBuyerData {

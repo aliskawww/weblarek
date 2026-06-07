@@ -1,16 +1,18 @@
 import './scss/styles.scss';
-import { ProductsModel } from './models/ProductsModel';
-import { CartModel } from './models/CartModel';
-import { BuyerModel } from './models/BuyerModel';
-import { LarekApi } from './components/base/LarekApi';
+import { ProductsModel } from './components/models/ProductsModel';
+import { CartModel } from './components/models/CartModel';
+import { BuyerModel } from './components/models/BuyerModels';
+import { LarekApi } from './components/LarekApi';
 import { API_URL } from './utils/constants';
 import { apiProducts } from './utils/data';
+import { Api } from './components/base/Api';
 
 // Создание экземпляров всех классов
 const productsModel = new ProductsModel();
 const cartModel = new CartModel();
 const buyerModel = new BuyerModel();
-const api = new LarekApi(API_URL);
+const apiInstance = new Api(API_URL);
+const api = new LarekApi(apiInstance);
 
 // Тестирование методов моделей данных
 console.log('ТЕСТИРОВАНИЕ МОДЕЛЕЙ ДАННЫХ');

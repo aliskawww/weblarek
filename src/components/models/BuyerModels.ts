@@ -1,4 +1,4 @@
-import { IBuyerData, PaymentMethod, ValidationErrors } from '../types';
+import { IBuyerData, PaymentMethod, ValidationErrors } from '../../types';
 
 export class BuyerModel {
   protected payment: PaymentMethod | null = null;
@@ -30,7 +30,7 @@ export class BuyerModel {
   }
 
   validate(): ValidationErrors {
-    const errors: Partial<Record<keyof IBuyerData, string>> = {};
+    const errors: ValidationErrors = {};
     if (!this.payment) errors.payment = 'Не выбран способ оплаты';
     if (!this.address.trim()) errors.address = 'Укажите адрес доставки';
     if (!this.email.trim()) errors.email = 'Укажите email';

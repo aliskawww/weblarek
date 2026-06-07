@@ -6,7 +6,7 @@ export interface IApi {
 }
 
 export interface IApiOrder {
-  payment: 'card' | 'cash';
+  payment: PaymentMethod;
   address: string;
   email: string;
   phone: string;
@@ -29,7 +29,7 @@ export interface IProduct {
 }
 
 export interface IBuyerData {
-    payment: 'card' | 'cash' | null;
+    payment: PaymentMethod | null;
     address: string;
     email: string;
     phone: string;

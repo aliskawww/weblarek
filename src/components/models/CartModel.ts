@@ -1,35 +1,47 @@
 import { IProduct } from '../../types';
+import { IEvents } from '../base/Events';
+import { AppEvents } from '../../utils/app-events';
 
 export class CartModel {
-    protected _items: IProduct[] = [];
+  protected _items: IProduct[] = [];
 
-    add(product: IProduct): void {
-        if (product.price !== null && !this.contains(product.id)) {
-            this._items.push(product);
-        }
-    }
+  constructor(protected events: IEvents) {}
 
-    remove(id: string): void {
-        this._items = this._items.filter(item => item.id !== id);
+  add(product: IProduct): void {
+    if (product.price !== null && !this.contains(product.id)) {
+      this._items.push(product);
+      this.events.emit(AppEvents.BasketChanged);
     }
+  }
 
-    clear(): void {
-        this._items = [];
+  remove(id: string): void {
+    const before = this._items.length;
+    this._items = this._items.filter((item) => item.id !== id);
+    if (this._items.length !== before) {
+      this.events.emit(AppEvents.BasketChanged);
     }
+  }
 
-    getItems(): IProduct[] {
-        return this._items;
+  clear(): void {
+    if (this._items.length) {
+      this._items = [];
+      this.events.emit(AppEvents.BasketChanged);
     }
+  }
 
-    getTotal(): number {
-        return this._items.reduce((total, item) => total + (item.price || 0), 0);
-    }
+  getItems(): IProduct[] {
+    return this._items;
+  }
 
-    getCount(): number {
-        return this._items.length;
-    }
+  getTotal(): number {
+    return this._items.reduce((total, item) => total + (item.price || 0), 0);
+  }
 
-    contains(id: string): boolean {
-        return this._items.some(item => item.id === id);
-    }
+  getCount(): number {
+    return this._items.length;
+  }
+
+  contains(id: string): boolean {
+    return this._items.some((item) => item.id === id);
+  }
 }

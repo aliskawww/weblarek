@@ -1,4 +1,6 @@
 import { IBuyerData, PaymentMethod, ValidationErrors } from '../../types';
+import { IEvents } from '../base/Events';
+import { AppEvents } from '../../utils/app-events';
 
 export class BuyerModel {
   protected payment: PaymentMethod | null = null;
@@ -6,11 +8,15 @@ export class BuyerModel {
   protected email: string = '';
   protected phone: string = '';
 
+  constructor(protected events: IEvents) {}
+
   setField<K extends keyof IBuyerData>(field: K, value: IBuyerData[K]): void {
     if (field === 'payment') this.payment = value as PaymentMethod | null;
     else if (field === 'address') this.address = value as string;
     else if (field === 'email') this.email = value as string;
     else if (field === 'phone') this.phone = value as string;
+
+    this.events.emit(AppEvents.BuyerChanged);
   }
 
   getData(): IBuyerData {
@@ -27,6 +33,7 @@ export class BuyerModel {
     this.address = '';
     this.email = '';
     this.phone = '';
+    this.events.emit(AppEvents.BuyerChanged);
   }
 
   validate(): ValidationErrors {

@@ -223,3 +223,59 @@ export interface IApiOrderResult {
   payment: 'Не выбран способ оплаты',
   email: 'Укажите email'
 }
+
+## События
+
+### Модели данных
+- `products:changed` — обновлён каталог товаров
+- `products:preview` — выбран товар для просмотра
+- `cart:changed` — изменилась корзина
+- `buyer:changed` — изменились данные покупателя
+
+### Представления
+- `card:select` — выбрана карточка товара
+- `card:add` — добавление товара в корзину
+- `card:remove` — удаление товара из корзины
+- `cart:open` — открытие корзины
+- `cart:checkout` — оформление заказа
+- `order:change` — изменение данных в форме заказа
+- `order:next` — переход ко второй форме
+- `contacts:change` — изменение данных в форме контактов
+- `contacts:submit` — отправка заказа
+- `success:close` — закрытие сообщения об успехе
+
+### Модальное окно
+- `modal:open` — открытие модального окна
+- `modal:close` — закрытие модального окна
+
+## Слой представления (View)
+
+### Класс Modal
+**Назначение:** управление модальным окном.
+**Конструктор:** `constructor(container: HTMLElement, events: IEvents)`
+**Методы:** `open()`, `close()`, `set content(value: HTMLElement)`
+
+### Класс Card
+**Назначение:** отображение карточки товара.
+**Конструктор:** `constructor(container: HTMLElement, events: IEvents, templateType: 'catalog' | 'preview' | 'cart')`
+**Сеттеры:** `id`, `title`, `price`, `category`, `image`, `description`, `buttonText`, `buttonDisabled`
+
+### Класс Catalog
+**Назначение:** отображение списка товаров.
+**Сеттер:** `items: HTMLElement[]`
+
+### Класс Cart
+**Назначение:** отображение корзины.
+**Сеттеры:** `items`, `total`, `buttonDisabled`
+
+### Класс OrderForm
+**Назначение:** форма заказа (шаг 1).
+**Методы:** `getData()`, `clear()`
+
+### Класс ContactsForm
+**Назначение:** форма контактов (шаг 2).
+**Методы:** `getData()`, `clear()`
+
+### Класс Success
+**Назначение:** сообщение об успешной оплате.
+**Сеттер:** `total`

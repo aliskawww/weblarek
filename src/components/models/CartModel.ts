@@ -23,10 +23,8 @@ export class CartModel {
   }
 
   clear(): void {
-    if (this._items.length) {
-      this._items = [];
-      this.events.emit(AppEvents.BasketChanged);
-    }
+    this._items = [];
+    this.events.emit(AppEvents.BasketChanged);
   }
 
   getItems(): IProduct[] {

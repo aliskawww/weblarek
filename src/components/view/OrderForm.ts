@@ -1,44 +1,79 @@
 import { IEvents } from '../base/Events';
 import { AppEvents } from '../../utils/app-events';
 import { FormBase } from './FormBase';
+import { PaymentMethod } from '../../types';
+import { ensureElement } from '../../utils/utils';
 
-export class OrderForm extends FormBase {
+export type OrderFormState = {
+  payment: PaymentMethod | null;
+  address: string;
+  errorsText: string;
+  canSubmit: boolean;
+};
+
+export class OrderForm extends FormBase<OrderFormState> {
+  protected addressInput: HTMLInputElement;
+  protected btnCard: HTMLButtonElement;
+  protected btnCash: HTMLButtonElement;
+
   constructor(template: HTMLTemplateElement, events: IEvents) {
     super(template, events);
-  }
 
-  render(state: { payment: 'card' | 'cash' | null; address: string; errorsText: string; canSubmit: boolean }): HTMLElement {
-    const el = this.template.content.firstElementChild!.cloneNode(true) as HTMLFormElement;
+    this.addressInput = ensureElement<HTMLInputElement>(
+      'input[name="address"]',
+      this.container
+    );
 
-    const addressInput = el.querySelector('input[name="address"]') as HTMLInputElement;
-    const btnCard = el.querySelector('button[name="card"]') as HTMLButtonElement;
-    const btnCash = el.querySelector('button[name="cash"]') as HTMLButtonElement;
+    this.btnCard = ensureElement<HTMLButtonElement>(
+      'button[name="card"]',
+      this.container
+    );
 
-    addressInput.value = state.address ?? '';
+    this.btnCash = ensureElement<HTMLButtonElement>(
+      'button[name="cash"]',
+      this.container
+    );
 
-    const setActive = (btn: HTMLButtonElement, active: boolean) => {
-      btn.classList.toggle('button_alt-active', active);
-    };
-    setActive(btnCard, state.payment === 'card');
-    setActive(btnCash, state.payment === 'cash');
-
-    btnCard.addEventListener('click', () => {
-      this.events.emit(AppEvents.FormChanged, { form: el.name, field: 'payment', value: 'card' });
+    this.btnCard.addEventListener('click', () => {
+      this.events.emit(AppEvents.FormChanged, {
+        form: (this.container as HTMLFormElement).name,
+        field: 'payment',
+        value: 'card',
+      });
     });
-    btnCash.addEventListener('click', () => {
-      this.events.emit(AppEvents.FormChanged, { form: el.name, field: 'payment', value: 'cash' });
+
+    this.btnCash.addEventListener('click', () => {
+      this.events.emit(AppEvents.FormChanged, {
+        form: (this.container as HTMLFormElement).name,
+        field: 'payment',
+        value: 'cash',
+      });
     });
 
-    this.bindCommonListeners(el);
-
-    el.addEventListener('submit', (e) => {
+    this.container.addEventListener('submit', (e) => {
       e.preventDefault();
       this.events.emit(AppEvents.OrderNext);
     });
+  }
 
-    this.setErrors(el, state.errorsText);
-    this.setSubmitEnabled(el, state.canSubmit);
+  set payment(value: PaymentMethod | null) {
+    this.btnCard.classList.toggle('button_alt-active', value === 'card');
+    this.btnCash.classList.toggle('button_alt-active', value === 'cash');
+  }
 
-    return el;
+  set address(value: string) {
+    this.addressInput.value = value;
+  }
+
+  set errorsText(value: string) {
+    this.setErrors(value);
+  }
+
+  set canSubmit(value: boolean) {
+    this.setSubmitEnabled(value);
+  }
+
+  render(data?: Partial<OrderFormState>): HTMLElement {
+    return super.render(data);
   }
 }

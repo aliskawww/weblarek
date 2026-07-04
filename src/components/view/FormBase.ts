@@ -1,5 +1,7 @@
 import { IEvents } from '../base/Events';
 import { AppEvents } from '../../utils/app-events';
+import { Component } from '../base/Component';
+import { ensureElement } from '../../utils/utils';
 
 export type FormChangePayload = {
   form: string;
@@ -7,37 +9,40 @@ export type FormChangePayload = {
   value: string;
 };
 
-export class FormBase {
-  protected formEl: HTMLFormElement;
+export abstract class FormBase<T> extends Component<T> {
   protected submitBtn: HTMLButtonElement;
   protected errorsEl: HTMLElement;
 
-  constructor(protected template: HTMLTemplateElement, protected events: IEvents) {
-    const el = this.template.content.firstElementChild as HTMLFormElement;
-    this.formEl = el;
-    this.submitBtn = el.querySelector('button[type="submit"]') as HTMLButtonElement;
-    this.errorsEl = el.querySelector('.form__errors') as HTMLElement;
-  }
+  constructor(template: HTMLTemplateElement, protected events: IEvents) {
+    super(template.content.firstElementChild!.cloneNode(true) as HTMLFormElement);
 
-  protected bindCommonListeners(el: HTMLFormElement): void {
-    el.addEventListener('input', (e) => {
+    this.submitBtn = ensureElement<HTMLButtonElement>(
+      'button[type="submit"]',
+      this.container
+    );
+
+    this.errorsEl = ensureElement<HTMLElement>(
+      '.form__errors',
+      this.container
+    );
+
+    this.container.addEventListener('input', (e) => {
       const target = e.target as HTMLInputElement;
       if (!target?.name) return;
+
       this.events.emit<FormChangePayload>(AppEvents.FormChanged, {
-        form: el.name,
+        form: (this.container as HTMLFormElement).name,
         field: target.name,
         value: target.value,
       });
     });
   }
 
-  setErrors(el: HTMLElement, text: string): void {
-    const errorsEl = el.querySelector('.form__errors') as HTMLElement;
-    errorsEl.textContent = text;
+  protected setErrors(text: string): void {
+    this.errorsEl.textContent = text;
   }
 
-  setSubmitEnabled(el: HTMLElement, enabled: boolean): void {
-    const btn = el.querySelector('button[type="submit"]') as HTMLButtonElement;
-    btn.disabled = !enabled;
+  protected setSubmitEnabled(enabled: boolean): void {
+    this.submitBtn.disabled = !enabled;
   }
 }

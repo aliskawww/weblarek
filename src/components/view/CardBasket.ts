@@ -1,26 +1,49 @@
 import { IEvents } from '../base/Events';
 import { AppEvents } from '../../utils/app-events';
 import { IProduct } from '../../types';
+import { ensureElement } from '../../utils/utils';
+import { Card, CardBaseState } from './Card';
 
-export class CardBasket {
-  constructor(protected template: HTMLTemplateElement, protected events: IEvents) {}
+export type CardBasketState = CardBaseState & {
+  id: string;
+  index: number;
+};
 
-  render(product: IProduct, index: number): HTMLElement {
-    const el = this.template.content.firstElementChild!.cloneNode(true) as HTMLElement;
+export class CardBasket extends Card<CardBasketState> {
+  protected indexEl: HTMLElement;
+  protected deleteBtn: HTMLButtonElement;
 
-    const indexEl = el.querySelector('.basket__item-index') as HTMLElement;
-    const titleEl = el.querySelector('.card__title') as HTMLElement;
-    const priceEl = el.querySelector('.card__price') as HTMLElement;
-    const deleteBtn = el.querySelector('.basket__item-delete') as HTMLButtonElement;
+  protected _id = '';
 
-    indexEl.textContent = String(index);
-    titleEl.textContent = product.title;
-    priceEl.textContent = product.price === null ? '—' : `${product.price} синапсов`;
+  constructor(container: HTMLElement, protected events: IEvents) {
+    super(container);
 
-    deleteBtn.addEventListener('click', () => {
-      this.events.emit(AppEvents.BasketItemRemove, { id: product.id });
+    this.indexEl = ensureElement<HTMLElement>('.basket__item-index', this.container);
+    this.deleteBtn = ensureElement<HTMLButtonElement>('.basket__item-delete', this.container);
+
+    this.deleteBtn.addEventListener('click', () => {
+      this.events.emit(AppEvents.BasketItemRemove, { id: this._id });
     });
+  }
 
-    return el;
+  set id(value: string) {
+    this._id = value;
+  }
+
+  set index(value: number) {
+    this.indexEl.textContent = String(value);
+  }
+
+  render(data?: Partial<CardBasketState>): HTMLElement {
+    return super.render(data);
+  }
+
+  renderProduct(product: IProduct, index: number): HTMLElement {
+    return this.render({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      index,
+    });
   }
 }

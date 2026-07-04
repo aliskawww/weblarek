@@ -1,21 +1,35 @@
 import { IEvents } from '../base/Events';
 import { AppEvents } from '../../utils/app-events';
+import { Component } from '../base/Component';
+import { ensureElement } from '../../utils/utils';
 
-export class SuccessView {
-  constructor(protected template: HTMLTemplateElement, protected events: IEvents) {}
+export type SuccessState = {
+  total: number;
+};
 
-  render(total: number): HTMLElement {
-    const el = this.template.content.firstElementChild!.cloneNode(true) as HTMLElement;
+export class SuccessView extends Component<SuccessState> {
+  protected descEl: HTMLElement;
+  protected closeBtn: HTMLButtonElement;
 
-    const desc = el.querySelector('.order-success__description') as HTMLElement;
-    const closeBtn = el.querySelector('.order-success__close') as HTMLButtonElement;
+  constructor(container: HTMLElement, protected events: IEvents) {
+    super(container);
 
-    desc.textContent = `Списано ${total} синапсов`;
+    this.descEl = ensureElement<HTMLElement>(
+      '.order-success__description',
+      this.container
+    );
 
-    closeBtn.addEventListener('click', () => {
+    this.closeBtn = ensureElement<HTMLButtonElement>(
+      '.order-success__close',
+      this.container
+    );
+
+    this.closeBtn.addEventListener('click', () => {
       this.events.emit(AppEvents.SuccessClose);
     });
+  }
 
-    return el;
+  set total(value: number) {
+    this.descEl.textContent = `Списано ${value} синапсов`;
   }
 }

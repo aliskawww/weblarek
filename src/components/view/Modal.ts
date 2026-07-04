@@ -1,32 +1,47 @@
 import { IEvents } from '../base/Events';
 import { AppEvents } from '../../utils/app-events';
+import { Component } from '../base/Component';
+import { ensureElement } from '../../utils/utils';
 
-export class Modal {
+export type ModalState = {
+  content?: HTMLElement;
+};
+
+export class Modal extends Component<ModalState> {
   protected contentEl: HTMLElement;
   protected closeBtn: HTMLButtonElement;
 
-  constructor(protected container: HTMLElement, protected events: IEvents) {
-    this.contentEl = this.container.querySelector('.modal__content') as HTMLElement;
-    this.closeBtn = this.container.querySelector('.modal__close') as HTMLButtonElement;
+  constructor(container: HTMLElement, protected events: IEvents) {
+    super(container);
 
-    this.closeBtn.addEventListener('click', () => this.close());
+    this.contentEl = ensureElement<HTMLElement>('.modal__content', this.container);
+    this.closeBtn = ensureElement<HTMLButtonElement>('.modal__close', this.container);
+
+    this.closeBtn.addEventListener('click', () => {
+      this.events.emit(AppEvents.ModalClose);
+    });
+
     this.container.addEventListener('click', (e) => {
-      if (e.target === this.container) this.close();
+      if (e.target === this.container) {
+        this.events.emit(AppEvents.ModalClose);
+      }
     });
   }
 
-  setContent(node: HTMLElement): void {
+  set content(node: HTMLElement) {
     this.contentEl.replaceChildren(node);
+  }
+
+  render(data?: Partial<ModalState>): HTMLElement {
+    return super.render(data);
   }
 
   open(): void {
     this.container.classList.add('modal_active');
-    this.events.emit(AppEvents.ModalOpen);
   }
 
   close(): void {
     this.container.classList.remove('modal_active');
     this.contentEl.replaceChildren();
-    this.events.emit(AppEvents.ModalClose);
   }
 }

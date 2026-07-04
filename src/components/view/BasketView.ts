@@ -1,5 +1,7 @@
+import { Component } from '../base/Component';
 import { IEvents } from '../base/Events';
 import { AppEvents } from '../../utils/app-events';
+import { ensureElement } from '../../utils/utils';
 
 export type BasketRenderData = {
   items: HTMLElement[];
@@ -7,41 +9,32 @@ export type BasketRenderData = {
   canCheckout: boolean;
 };
 
-export class BasketView {
+export class BasketView extends Component<BasketRenderData> {
   protected listEl: HTMLElement;
   protected totalEl: HTMLElement;
   protected checkoutBtn: HTMLButtonElement;
 
-  constructor(protected template: HTMLTemplateElement, protected events: IEvents) {
-    const el = this.template.content.firstElementChild as HTMLElement;
-    this.listEl = el.querySelector('.basket__list') as HTMLElement;
-    this.totalEl = el.querySelector('.basket__price') as HTMLElement;
-    this.checkoutBtn = el.querySelector('.basket__button') as HTMLButtonElement;
-  }
+  constructor(container: HTMLElement, protected events: IEvents) {
+    super(container);
 
-  render(data: BasketRenderData): HTMLElement {
-    const el = this.template.content.firstElementChild!.cloneNode(true) as HTMLElement;
+    this.listEl = ensureElement<HTMLElement>('.basket__list', this.container);
+    this.totalEl = ensureElement<HTMLElement>('.basket__price', this.container);
+    this.checkoutBtn = ensureElement<HTMLButtonElement>('.basket__button', this.container);
 
-    const listEl = el.querySelector('.basket__list') as HTMLElement;
-    const totalEl = el.querySelector('.basket__price') as HTMLElement;
-    const checkoutBtn = el.querySelector('.basket__button') as HTMLButtonElement;
-
-    if (data.items.length === 0) {
-      listEl.replaceChildren();
-      const empty = document.createElement('p');
-      empty.textContent = 'Корзина пуста';
-      listEl.append(empty);
-    } else {
-      listEl.replaceChildren(...data.items);
-    }
-
-    totalEl.textContent = `${data.total} синапсов`;
-    checkoutBtn.disabled = !data.canCheckout;
-
-    checkoutBtn.addEventListener('click', () => {
+    this.checkoutBtn.addEventListener('click', () => {
       this.events.emit(AppEvents.BasketCheckout);
     });
+  }
 
-    return el;
+  set items(items: HTMLElement[]) {
+    this.listEl.replaceChildren(...items);
+  }
+
+  set total(total: number) {
+    this.totalEl.textContent = `${total} синапсов`;
+  }
+
+  set canCheckout(value: boolean) {
+    this.checkoutBtn.disabled = !value;
   }
 }

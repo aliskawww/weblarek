@@ -1,61 +1,86 @@
 import { IEvents } from '../base/Events';
 import { AppEvents } from '../../utils/app-events';
-import { IProduct } from '../../types';
-import { categoryMap, CDN_URL } from '../../utils/constants';
+import { ensureElement } from '../../utils/utils';
+import { Card, CardBaseState } from './Card';
+import { categoryMap } from '../../utils/constants';
 
 const categoryMods = categoryMap as Record<string, string>;
 
-export type PreviewState = {
+export type CardPreviewState = CardBaseState & {
+  id: string;
+  category: string;
+  description: string;
+  image: string;
   inBasket: boolean;
+  available: boolean;
 };
 
-export class CardPreview {
-  constructor(protected template: HTMLTemplateElement, protected events: IEvents) {}
+export class CardPreview extends Card<CardPreviewState> {
+  protected categoryEl: HTMLElement;
+  protected imageEl: HTMLImageElement;
+  protected textEl: HTMLElement;
+  protected buttonEl: HTMLButtonElement;
 
-  render(product: IProduct, state: PreviewState): HTMLElement {
-    const el = this.template.content.firstElementChild!.cloneNode(true) as HTMLElement;
+  protected _id = '';
+  protected _inBasket = false;
+  protected _available = true;
 
-    const titleEl = el.querySelector('.card__title') as HTMLElement;
-    const categoryEl = el.querySelector('.card__category') as HTMLElement;
-    const imageEl = el.querySelector('.card__image') as HTMLImageElement;
-    const textEl = el.querySelector('.card__text') as HTMLElement;
-    const priceEl = el.querySelector('.card__price') as HTMLElement;
-    const buttonEl = el.querySelector('.card__button') as HTMLButtonElement;
+  constructor(container: HTMLElement, protected events: IEvents) {
+    super(container);
 
-    titleEl.textContent = product.title;
-    categoryEl.textContent = product.category;
+    this.categoryEl = ensureElement<HTMLElement>('.card__category', this.container);
+    this.imageEl = ensureElement<HTMLImageElement>('.card__image', this.container);
+    this.textEl = ensureElement<HTMLElement>('.card__text', this.container);
+    this.buttonEl = ensureElement<HTMLButtonElement>('.card__button', this.container);
 
-    const mod = categoryMods[product.category] ?? categoryMods['другое'] ?? '';
-    categoryEl.className = `card__category ${mod}`.trim();
-
-    imageEl.src = product.image.startsWith('http')
-      ? product.image
-      : `${CDN_URL}${product.image}`;
-    imageEl.alt = product.title;
-
-    textEl.textContent = product.description;
-
-    if (product.price === null) {
-      priceEl.textContent = '';
-      buttonEl.textContent = 'Недоступно';
-      buttonEl.disabled = true;
-    } else {
-      priceEl.textContent = `${product.price} синапсов`;
-      buttonEl.disabled = false;
-
-      if (state.inBasket) {
-        buttonEl.textContent = 'Удалить из корзины';
-        buttonEl.addEventListener('click', () => {
-          this.events.emit(AppEvents.ProductRemove, { id: product.id });
-        });
-      } else {
-        buttonEl.textContent = 'Купить';
-        buttonEl.addEventListener('click', () => {
-          this.events.emit(AppEvents.ProductBuy, { id: product.id });
-        });
+    this.buttonEl.addEventListener('click', () => {
+      if (!this._available) {
+        return;
       }
-    }
 
-    return el;
+      this.events.emit(AppEvents.CardAction, { id: this._id });
+    });
+  }
+
+  set id(value: string) {
+    this._id = value;
+  }
+
+  set title(value: string) {
+    super.title = value;
+    this.imageEl.alt = value;
+  }
+
+  set category(value: string) {
+    this.categoryEl.textContent = value;
+    const mod = categoryMods[value] ?? categoryMods['другое'] ?? '';
+    this.categoryEl.className = `card__category ${mod}`.trim();
+  }
+
+  set description(value: string) {
+    this.textEl.textContent = value;
+  }
+
+  set image(value: string) {
+    this.imageEl.src = value;
+  }
+
+  set inBasket(value: boolean) {
+    this._inBasket = value;
+    if (this._available) {
+      this.buttonEl.textContent = value ? 'Удалить из корзины' : 'Купить';
+    }
+  }
+
+  set available(value: boolean) {
+    this._available = value;
+    this.buttonEl.disabled = !value;
+
+    if (!value) {
+      this.buttonEl.textContent = 'Недоступно';
+      this.priceEl.textContent = 'Бесценно';
+    } else {
+      this.buttonEl.textContent = this._inBasket ? 'Удалить из корзины' : 'Купить';
+    }
   }
 }

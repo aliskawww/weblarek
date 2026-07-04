@@ -3,8 +3,9 @@ import './scss/styles.scss';
 import { Api } from './components/base/Api';
 import { EventEmitter } from './components/base/Events';
 import { LarekApi } from './components/LarekApi';
-import { API_URL } from './utils/constants';
+import { API_URL, CDN_URL } from './utils/constants';
 import { AppEvents } from './utils/app-events';
+import { ensureElement, cloneTemplate } from './utils/utils';
 
 import { ProductsModel } from './components/models/ProductsModel';
 import { CartModel } from './components/models/CartModel';
@@ -12,6 +13,7 @@ import { BuyerModel } from './components/models/BuyerModels';
 
 import { Modal } from './components/view/Modal';
 import { Gallery } from './components/view/Gallery';
+import { Header } from './components/view/Header';
 import { CardCatalog } from './components/view/CardCatalog';
 import { CardPreview } from './components/view/CardPreview';
 import { CardBasket } from './components/view/CardBasket';
@@ -29,100 +31,175 @@ const buyerModel = new BuyerModel(events);
 const apiInstance = new Api(API_URL);
 const api = new LarekApi(apiInstance);
 
-const galleryEl = document.querySelector('main.gallery');
-if (!galleryEl) throw new Error('Не найден контейнер каталога .gallery');
+const page = ensureElement<HTMLElement>('.page');
+const galleryEl = ensureElement<HTMLElement>('main.gallery');
+const modalEl = ensureElement<HTMLElement>('#modal-container');
 
-const basketBtn = document.querySelector('.header__basket') as HTMLButtonElement | null;
-if (!basketBtn) throw new Error('Не найдена кнопка корзины .header__basket');
-
-const basketCounterEl = basketBtn.querySelector('.header__basket-counter') as HTMLElement | null;
-if (!basketCounterEl) throw new Error('Не найден счётчик корзины .header__basket-counter');
-
-const modalEl = document.getElementById('modal-container');
-if (!modalEl) throw new Error('Не найден контейнер модалки #modal-container');
-
+const header = new Header(page, events);
 const modal = new Modal(modalEl, events);
-const gallery = new Gallery(galleryEl as HTMLElement);
+const gallery = new Gallery(galleryEl);
 
-const getTemplate = (id: string): HTMLTemplateElement => {
-  const t = document.getElementById(id);
-  if (!t) throw new Error(`Не найден template #${id} в index.html`);
-  if (!(t instanceof HTMLTemplateElement)) throw new Error(`#${id} не является <template>`);
-  return t;
-};
-
-const cardCatalogTemplate = getTemplate('card-catalog');
-const cardPreviewTemplate = getTemplate('card-preview');
-const cardBasketTemplate = getTemplate('card-basket');
-const basketTemplate = getTemplate('basket');
-const orderTemplate = getTemplate('order');
-const contactsTemplate = getTemplate('contacts');
-const successTemplate = getTemplate('success');
-
-const cardCatalogView = new CardCatalog(cardCatalogTemplate, events);
-const cardPreviewView = new CardPreview(cardPreviewTemplate, events);
-const cardBasketView = new CardBasket(cardBasketTemplate, events);
-const basketView = new BasketView(basketTemplate, events);
-const orderFormView = new OrderForm(orderTemplate, events);
-const contactsFormView = new ContactsForm(contactsTemplate, events);
-const successView = new SuccessView(successTemplate, events);
+const basketView = new BasketView(cloneTemplate<HTMLElement>('#basket'), events);
+const orderFormView = new OrderForm(ensureElement<HTMLTemplateElement>('#order'), events);
+const contactsFormView = new ContactsForm(ensureElement<HTMLTemplateElement>('#contacts'), events);
+const successView = new SuccessView(cloneTemplate<HTMLElement>('#success'), events);
 
 const buildErrorsText = (errors: Record<string, string | undefined>) =>
   Object.values(errors).filter(Boolean).join('. ');
 
+type ModalScreen = 'preview' | 'basket' | 'order' | 'contacts' | 'success' | null;
+let currentModalScreen: ModalScreen = null;
+
+const renderBasketItems = () =>
+  cartModel.getItems().map((product, index) => {
+    const card = new CardBasket(cloneTemplate<HTMLElement>('#card-basket'), events);
+    return card.render({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      index: index + 1,
+    });
+  });
+
+const renderBasket = () =>
+  basketView.render({
+    items: renderBasketItems(),
+    total: cartModel.getTotal(),
+    canCheckout: cartModel.getCount() > 0,
+  });
+
+const renderOrderForm = () => {
+  const data = buyerModel.getData();
+  const errors = buyerModel.validate();
+
+  return orderFormView.render({
+    payment: data.payment,
+    address: data.address,
+    errorsText: buildErrorsText({
+      payment: errors.payment,
+      address: errors.address,
+    }),
+    canSubmit: !errors.payment && !errors.address,
+  });
+};
+
+const renderContactsForm = () => {
+  const data = buyerModel.getData();
+  const errors = buyerModel.validate();
+
+  return contactsFormView.render({
+    email: data.email,
+    phone: data.phone,
+    errorsText: buildErrorsText({
+      email: errors.email,
+      phone: errors.phone,
+    }),
+    canSubmit: !errors.email && !errors.phone,
+  });
+};
+
 events.on(AppEvents.CatalogChanged, () => {
-  const cards = productsModel.getItems().map((p) => cardCatalogView.render(p));
-  gallery.render(cards);
+  const cards = productsModel.getItems().map((product) => {
+    const card = new CardCatalog(cloneTemplate<HTMLElement>('#card-catalog'), events);
+
+    return card.render({
+      id: product.id,
+      title: product.title,
+      category: product.category,
+      price: product.price,
+      image: product.image.startsWith('http')
+        ? product.image
+        : `${CDN_URL}${product.image}`,
+    });
+  });
+
+  gallery.render({ items: cards });
 });
 
-events.on<{ id: string }>(AppEvents.ProductOpen, ({ id }) => {
-  productsModel.setPreview(id);
+events.on(AppEvents.BasketChanged, () => {
+  header.render({ counter: cartModel.getCount() });
+
+  if (currentModalScreen === 'basket') {
+    modal.render({
+      content: renderBasket(),
+    });
+  }
 });
 
 events.on(AppEvents.PreviewChanged, () => {
   const product = productsModel.getPreview();
   if (!product) return;
 
-  const node = cardPreviewView.render(product, { inBasket: cartModel.contains(product.id) });
-  modal.setContent(node);
+  const preview = new CardPreview(cloneTemplate<HTMLElement>('#card-preview'), events);
+
+  modal.render({
+    content: preview.render({
+      id: product.id,
+      title: product.title,
+      category: product.category,
+      description: product.description,
+      price: product.price,
+      image: product.image.startsWith('http')
+        ? product.image
+        : `${CDN_URL}${product.image}`,
+      inBasket: cartModel.contains(product.id),
+      available: product.price !== null,
+    }),
+  });
+
+  currentModalScreen = 'preview';
   modal.open();
 });
 
-basketBtn.addEventListener('click', () => {
-  events.emit(AppEvents.BasketOpen);
+events.on(AppEvents.BuyerChanged, () => {
+  if (currentModalScreen === 'order') {
+    orderFormView.render({
+      payment: buyerModel.getData().payment,
+      address: buyerModel.getData().address,
+      errorsText: buildErrorsText({
+        payment: buyerModel.validate().payment,
+        address: buyerModel.validate().address,
+      }),
+      canSubmit: !buyerModel.validate().payment && !buyerModel.validate().address,
+    });
+  }
+
+  if (currentModalScreen === 'contacts') {
+    contactsFormView.render({
+      email: buyerModel.getData().email,
+      phone: buyerModel.getData().phone,
+      errorsText: buildErrorsText({
+        email: buyerModel.validate().email,
+        phone: buyerModel.validate().phone,
+      }),
+      canSubmit: !buyerModel.validate().email && !buyerModel.validate().phone,
+    });
+  }
 });
 
-events.on(AppEvents.BasketChanged, () => {
-  basketCounterEl.textContent = String(cartModel.getCount());
+events.on<{ id: string }>(AppEvents.ProductOpen, ({ id }) => {
+  productsModel.setPreview(id);
 });
 
-let openBasketAfterModalClose = false;
-
-events.on<{ id: string }>(AppEvents.ProductBuy, ({ id }) => {
+events.on<{ id: string }>(AppEvents.CardAction, ({ id }) => {
   const product = productsModel.getProductById(id);
   if (!product) return;
 
-  cartModel.add(product);
+  if (cartModel.contains(id)) {
+    cartModel.remove(id);
+  } else {
+    cartModel.add(product);
+  }
 
-  openBasketAfterModalClose = true;
-  modal.close();
-});
-
-events.on<{ id: string }>(AppEvents.ProductRemove, ({ id }) => {
-  cartModel.remove(id);
-
-  openBasketAfterModalClose = true;
+  currentModalScreen = null;
   modal.close();
 });
 
 events.on(AppEvents.BasketOpen, () => {
-  const items = cartModel.getItems().map((p, i) => cardBasketView.render(p, i + 1));
-  const node = basketView.render({
-    items,
-    total: cartModel.getTotal(),
-    canCheckout: cartModel.getCount() > 0,
+  currentModalScreen = 'basket';
+  modal.render({
+    content: renderBasket(),
   });
-  modal.setContent(node);
   modal.open();
 });
 
@@ -130,113 +207,51 @@ events.on<{ id: string }>(AppEvents.BasketItemRemove, ({ id }) => {
   cartModel.remove(id);
 });
 
-events.on(AppEvents.BasketChanged, () => {
-  const isOpen = modalEl.classList.contains('modal_active');
-  if (!isOpen) return;
-
-  const hasBasket = modalEl.querySelector('.basket');
-  if (!hasBasket) return;
-
-  const items = cartModel.getItems().map((p, i) => cardBasketView.render(p, i + 1));
-  const node = basketView.render({
-    items,
-    total: cartModel.getTotal(),
-    canCheckout: cartModel.getCount() > 0,
-  });
-  modal.setContent(node);
-});
-
 events.on(AppEvents.BasketCheckout, () => {
-  const data = buyerModel.getData();
-  const errors = buyerModel.validate();
-  const step1Errors: Record<string, string | undefined> = {
-    payment: errors.payment,
-    address: errors.address,
-  };
-
-  const node = orderFormView.render({
-    payment: data.payment,
-    address: data.address,
-    errorsText: buildErrorsText(step1Errors),
-    canSubmit: !step1Errors.payment && !step1Errors.address && !!data.payment && !!data.address.trim(),
+  currentModalScreen = 'order';
+  modal.render({
+    content: renderOrderForm(),
   });
-
-  modal.setContent(node);
   modal.open();
 });
 
-events.on<{ form: string; field: string; value: string }>(AppEvents.FormChanged, ({ field, value }) => {
-  if (field === 'payment') {
-    buyerModel.setField('payment', value === 'card' || value === 'cash' ? value : null);
-  } else if (field === 'address') {
-    buyerModel.setField('address', value);
-  } else if (field === 'email') {
-    buyerModel.setField('email', value);
-  } else if (field === 'phone') {
-    buyerModel.setField('phone', value);
+events.on<{ form: string; field: string; value: string }>(
+  AppEvents.FormChanged,
+  ({ field, value }) => {
+    if (field === 'payment') {
+      buyerModel.setField(
+        'payment',
+        value === 'card' || value === 'cash' ? value : null
+      );
+      return;
+    }
+
+    if (field === 'address') {
+      buyerModel.setField('address', value);
+      return;
+    }
+
+    if (field === 'email') {
+      buyerModel.setField('email', value);
+      return;
+    }
+
+    if (field === 'phone') {
+      buyerModel.setField('phone', value);
+    }
   }
-});
+);
 
 events.on(AppEvents.OrderNext, () => {
-  const data = buyerModel.getData();
-  const errors = buyerModel.validate();
-
-  if (errors.payment || errors.address) {
-    const step1Errors: Record<string, string | undefined> = {
-      payment: errors.payment,
-      address: errors.address,
-    };
-
-    const node = orderFormView.render({
-      payment: data.payment,
-      address: data.address,
-      errorsText: buildErrorsText(step1Errors),
-      canSubmit: !step1Errors.payment && !step1Errors.address && !!data.payment && !!data.address.trim(),
-    });
-
-    modal.setContent(node);
-    modal.open();
-    return;
-  }
-
-  const step2Errors: Record<string, string | undefined> = {
-    email: errors.email,
-    phone: errors.phone,
-  };
-
-  const node = contactsFormView.render({
-    email: data.email,
-    phone: data.phone,
-    errorsText: buildErrorsText(step2Errors),
-    canSubmit: !step2Errors.email && !step2Errors.phone && !!data.email.trim() && !!data.phone.trim(),
+  currentModalScreen = 'contacts';
+  modal.render({
+    content: renderContactsForm(),
   });
-
-  modal.setContent(node);
   modal.open();
 });
 
 events.on(AppEvents.OrderPay, () => {
   const data = buyerModel.getData();
-  const errors = buyerModel.validate();
-
-  if (errors.email || errors.phone) {
-    const step2Errors: Record<string, string | undefined> = {
-      email: errors.email,
-      phone: errors.phone,
-    };
-
-    const node = contactsFormView.render({
-      email: data.email,
-      phone: data.phone,
-      errorsText: buildErrorsText(step2Errors),
-      canSubmit: !step2Errors.email && !step2Errors.phone && !!data.email.trim() && !!data.phone.trim(),
-    });
-
-    modal.setContent(node);
-    modal.open();
-    return;
-  }
-
   if (!data.payment) return;
 
   api.postOrder({
@@ -244,12 +259,14 @@ events.on(AppEvents.OrderPay, () => {
     address: data.address,
     email: data.email,
     phone: data.phone,
-    items: cartModel.getItems().map((p) => p.id),
+    items: cartModel.getItems().map((product) => product.id),
     total: cartModel.getTotal(),
   })
     .then((res) => {
-      const node = successView.render(res.total);
-      modal.setContent(node);
+      currentModalScreen = 'success';
+      modal.render({
+        content: successView.render({ total: res.total }),
+      });
       modal.open();
 
       cartModel.clear();
@@ -261,18 +278,21 @@ events.on(AppEvents.OrderPay, () => {
 });
 
 events.on(AppEvents.SuccessClose, () => {
+  currentModalScreen = null;
   modal.close();
 });
 
 events.on(AppEvents.ModalClose, () => {
-  if (!openBasketAfterModalClose) return;
-
-  openBasketAfterModalClose = false;
-  events.emit(AppEvents.BasketOpen);
+  currentModalScreen = null;
+  modal.close();
 });
 
+header.render({ counter: cartModel.getCount() });
+
 api.getProducts()
-  .then((data) => productsModel.setItems(data.items))
+  .then((data) => {
+    productsModel.setItems(data.items);
+  })
   .catch((err) => {
     console.error('Ошибка API:', err);
   });

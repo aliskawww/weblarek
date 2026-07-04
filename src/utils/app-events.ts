@@ -5,8 +5,7 @@ export const AppEvents = {
   BuyerChanged: 'buyer:changed',
 
   ProductOpen: 'product:open',
-  ProductBuy: 'product:buy',
-  ProductRemove: 'product:remove',
+  CardAction: 'card:action',
 
   BasketOpen: 'basket:open',
   BasketItemRemove: 'basket:item-remove',

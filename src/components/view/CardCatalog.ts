@@ -1,58 +1,53 @@
 import { IEvents } from '../base/Events';
 import { AppEvents } from '../../utils/app-events';
-import { IProduct } from '../../types';
-import { categoryMap, CDN_URL } from '../../utils/constants';
+import { categoryMap } from '../../utils/constants';
+import { ensureElement } from '../../utils/utils';
+import { Card, CardBaseState } from './Card';
 
 const categoryMods = categoryMap as Record<string, string>;
 
-export class CardCatalog {
-  protected titleEl: HTMLElement;
+export type CardCatalogState = CardBaseState & {
+  id: string;
+  category: string;
+  image: string;
+};
+
+export class CardCatalog extends Card<CardCatalogState> {
   protected categoryEl: HTMLElement;
   protected imageEl: HTMLImageElement;
-  protected priceEl: HTMLElement;
+  protected _id = '';
 
-  constructor(protected template: HTMLTemplateElement, protected events: IEvents) {
-    const el = this.template.content.firstElementChild as HTMLElement;
-    this.titleEl = el.querySelector('.card__title') as HTMLElement;
-    this.categoryEl = el.querySelector('.card__category') as HTMLElement;
-    this.imageEl = el.querySelector('.card__image') as HTMLImageElement;
-    this.priceEl = el.querySelector('.card__price') as HTMLElement;
+  constructor(container: HTMLElement, protected events: IEvents) {
+    super(container);
+
+    this.categoryEl = ensureElement<HTMLElement>('.card__category', this.container);
+    this.imageEl = ensureElement<HTMLImageElement>('.card__image', this.container);
+
+    this.container.addEventListener('click', () => {
+      this.events.emit(AppEvents.ProductOpen, { id: this._id });
+    });
   }
 
-  render(product: IProduct): HTMLElement {
-    const el = this.template.content.firstElementChild!.cloneNode(true) as HTMLElement;
+  set id(value: string) {
+    this._id = value;
+  }
 
-    const titleEl = el.querySelector('.card__title') as HTMLElement;
-    const categoryEl = el.querySelector('.card__category') as HTMLElement;
-    const imageEl = el.querySelector('.card__image') as HTMLImageElement;
-    const priceEl = el.querySelector('.card__price') as HTMLElement;
+  set title(value: string) {
+    super.title = value;
+    this.imageEl.alt = value;
+  }
 
-    titleEl.textContent = product.title;
-    categoryEl.textContent = product.category;
+  set category(value: string) {
+    this.categoryEl.textContent = value;
+    const mod = categoryMods[value] ?? categoryMods['другое'] ?? '';
+    this.categoryEl.className = `card__category ${mod}`.trim();
+  }
 
-    // модификатор категории
-    const mod = categoryMods[product.category] ?? categoryMods['другое'] ?? '';
-    categoryEl.className = `card__category ${mod}`.trim();
+  set image(value: string) {
+    this.imageEl.src = value;
+  }
 
-    // В API image обычно относительный путь, добавляем CDN/базу
-    // Если image уже абсолютный (http...), оставляем как есть
-    imageEl.src = product.image.startsWith('http')
-      ? product.image
-      : `${CDN_URL}${product.image}`;
-    imageEl.alt = product.title;
-
-    if (product.price === null) {
-      priceEl.textContent = 'Недоступно';
-      (el as HTMLButtonElement).disabled = true;
-    } else {
-      priceEl.textContent = `${product.price} синапсов`;
-      (el as HTMLButtonElement).disabled = false;
-    }
-
-    el.addEventListener('click', () => {
-      this.events.emit(AppEvents.ProductOpen, { id: product.id });
-    });
-
-    return el;
+  set price(value: number | null) {
+    this.priceEl.textContent = value === null ? 'Недоступно' : `${value} синапсов`;
   }
 }

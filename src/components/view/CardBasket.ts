@@ -1,19 +1,15 @@
-import { IEvents } from '../base/Events';
-import { AppEvents } from '../../utils/app-events';
 import { ensureElement } from '../../utils/utils';
 import { Card, CardBaseState } from './Card';
 
 export type CardBasketState = CardBaseState & {
-  id: string;
   index: number;
 };
 
 export class CardBasket extends Card<CardBasketState> {
   protected indexEl: HTMLElement;
   protected deleteBtn: HTMLButtonElement;
-  protected _id = '';
 
-  constructor(container: HTMLElement, protected events: IEvents) {
+  constructor(container: HTMLElement, protected onDelete: () => void) {
     super(container);
 
     this.indexEl = ensureElement<HTMLElement>(
@@ -27,12 +23,8 @@ export class CardBasket extends Card<CardBasketState> {
     );
 
     this.deleteBtn.addEventListener('click', () => {
-      this.events.emit(AppEvents.BasketItemRemove, { id: this._id });
+      this.onDelete();
     });
-  }
-
-  set id(value: string) {
-    this._id = value;
   }
 
   set index(value: number) {

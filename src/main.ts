@@ -51,14 +51,18 @@ const buildErrorsText = (errors: Record<string, string | undefined>) =>
 
 const renderBasketItems = () =>
   cartModel.getItems().map((product, index) => {
-    const card = new CardBasket(cloneTemplate<HTMLElement>('#card-basket'), events);
+    const card = new CardBasket(
+      cloneTemplate<HTMLElement>('#card-basket'),
+      () => events.emit(AppEvents.BasketItemRemove, { id: product.id })
+    );
+
     return card.render({
-      id: product.id,
       title: product.title,
       price: product.price,
       index: index + 1,
     });
   });
+
 
 const renderBasket = () =>
   basketView.render({

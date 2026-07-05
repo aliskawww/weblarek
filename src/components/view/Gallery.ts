@@ -9,9 +9,7 @@ export class Gallery extends Component<GalleryState> {
     super(container);
   }
 
-  render(data: GalleryState): HTMLElement {
-    super.render(data);
-    this.container.replaceChildren(...data.items);
-    return this.container;
+  set items(items: HTMLElement[]) {
+    this.container.replaceChildren(...items);
   }
 }

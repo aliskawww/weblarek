@@ -43,12 +43,11 @@ const basketView = new BasketView(cloneTemplate<HTMLElement>('#basket'), events)
 const orderFormView = new OrderForm(ensureElement<HTMLTemplateElement>('#order'), events);
 const contactsFormView = new ContactsForm(ensureElement<HTMLTemplateElement>('#contacts'), events);
 const successView = new SuccessView(cloneTemplate<HTMLElement>('#success'), events);
+const previewView = new CardPreview(cloneTemplate<HTMLElement>('#card-preview'), events);
 
 const buildErrorsText = (errors: Record<string, string | undefined>) =>
   Object.values(errors).filter(Boolean).join('. ');
 
-type ModalScreen = 'preview' | 'basket' | 'order' | 'contacts' | 'success' | null;
-let currentModalScreen: ModalScreen = null;
 
 const renderBasketItems = () =>
   cartModel.getItems().map((product, index) => {
@@ -100,10 +99,12 @@ const renderContactsForm = () => {
 
 events.on(AppEvents.CatalogChanged, () => {
   const cards = productsModel.getItems().map((product) => {
-    const card = new CardCatalog(cloneTemplate<HTMLElement>('#card-catalog'), events);
+    const card = new CardCatalog(
+      cloneTemplate<HTMLElement>('#card-catalog'),
+      () => events.emit(AppEvents.ProductOpen, { id: product.id })
+    );
 
     return card.render({
-      id: product.id,
       title: product.title,
       category: product.category,
       price: product.price,
@@ -118,85 +119,80 @@ events.on(AppEvents.CatalogChanged, () => {
 
 events.on(AppEvents.BasketChanged, () => {
   header.render({ counter: cartModel.getCount() });
-
-  if (currentModalScreen === 'basket') {
-    modal.render({
-      content: renderBasket(),
-    });
-  }
+  renderBasket();
 });
 
 events.on(AppEvents.PreviewChanged, () => {
   const product = productsModel.getPreview();
   if (!product) return;
 
-  const preview = new CardPreview(cloneTemplate<HTMLElement>('#card-preview'), events);
+  const inBasket = cartModel.contains(product.id);
+  const available = product.price !== null;
 
   modal.render({
-    content: preview.render({
-      id: product.id,
+    content: previewView.render({
       title: product.title,
       category: product.category,
       description: product.description,
-      price: product.price,
+      price: available ? product.price : null,
       image: product.image.startsWith('http')
         ? product.image
         : `${CDN_URL}${product.image}`,
-      inBasket: cartModel.contains(product.id),
-      available: product.price !== null,
+      buttonText: !available
+        ? 'Недоступно'
+        : inBasket
+          ? 'Удалить из корзины'
+          : 'Купить',
+      buttonDisabled: !available,
     }),
   });
 
-  currentModalScreen = 'preview';
   modal.open();
 });
 
 events.on(AppEvents.BuyerChanged, () => {
-  if (currentModalScreen === 'order') {
-    orderFormView.render({
-      payment: buyerModel.getData().payment,
-      address: buyerModel.getData().address,
-      errorsText: buildErrorsText({
-        payment: buyerModel.validate().payment,
-        address: buyerModel.validate().address,
-      }),
-      canSubmit: !buyerModel.validate().payment && !buyerModel.validate().address,
-    });
-  }
+  const data = buyerModel.getData();
+  const errors = buyerModel.validate();
 
-  if (currentModalScreen === 'contacts') {
-    contactsFormView.render({
-      email: buyerModel.getData().email,
-      phone: buyerModel.getData().phone,
-      errorsText: buildErrorsText({
-        email: buyerModel.validate().email,
-        phone: buyerModel.validate().phone,
-      }),
-      canSubmit: !buyerModel.validate().email && !buyerModel.validate().phone,
-    });
-  }
+  orderFormView.render({
+    payment: data.payment,
+    address: data.address,
+    errorsText: buildErrorsText({
+      payment: errors.payment,
+      address: errors.address,
+    }),
+    canSubmit: !errors.payment && !errors.address,
+  });
+
+  contactsFormView.render({
+    email: data.email,
+    phone: data.phone,
+    errorsText: buildErrorsText({
+      email: errors.email,
+      phone: errors.phone,
+    }),
+    canSubmit: !errors.email && !errors.phone,
+  });
 });
 
 events.on<{ id: string }>(AppEvents.ProductOpen, ({ id }) => {
   productsModel.setPreview(id);
 });
 
-events.on<{ id: string }>(AppEvents.CardAction, ({ id }) => {
-  const product = productsModel.getProductById(id);
+events.on(AppEvents.CardAction, () => {
+  const product = productsModel.getPreview();
   if (!product) return;
 
-  if (cartModel.contains(id)) {
-    cartModel.remove(id);
+  if (cartModel.contains(product.id)) {
+    cartModel.remove(product.id);
   } else {
     cartModel.add(product);
   }
 
-  currentModalScreen = null;
   modal.close();
 });
 
 events.on(AppEvents.BasketOpen, () => {
-  currentModalScreen = 'basket';
   modal.render({
     content: renderBasket(),
   });
@@ -208,7 +204,6 @@ events.on<{ id: string }>(AppEvents.BasketItemRemove, ({ id }) => {
 });
 
 events.on(AppEvents.BasketCheckout, () => {
-  currentModalScreen = 'order';
   modal.render({
     content: renderOrderForm(),
   });
@@ -243,7 +238,6 @@ events.on<{ form: string; field: string; value: string }>(
 );
 
 events.on(AppEvents.OrderNext, () => {
-  currentModalScreen = 'contacts';
   modal.render({
     content: renderContactsForm(),
   });
@@ -263,7 +257,6 @@ events.on(AppEvents.OrderPay, () => {
     total: cartModel.getTotal(),
   })
     .then((res) => {
-      currentModalScreen = 'success';
       modal.render({
         content: successView.render({ total: res.total }),
       });
@@ -278,12 +271,10 @@ events.on(AppEvents.OrderPay, () => {
 });
 
 events.on(AppEvents.SuccessClose, () => {
-  currentModalScreen = null;
   modal.close();
 });
 
 events.on(AppEvents.ModalClose, () => {
-  currentModalScreen = null;
   modal.close();
 });
 

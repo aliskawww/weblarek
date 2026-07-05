@@ -7,12 +7,11 @@ import { categoryMap } from '../../utils/constants';
 const categoryMods = categoryMap as Record<string, string>;
 
 export type CardPreviewState = CardBaseState & {
-  id: string;
   category: string;
   description: string;
   image: string;
-  inBasket: boolean;
-  available: boolean;
+  buttonText: string;
+  buttonDisabled: boolean;
 };
 
 export class CardPreview extends Card<CardPreviewState> {
@@ -20,10 +19,6 @@ export class CardPreview extends Card<CardPreviewState> {
   protected imageEl: HTMLImageElement;
   protected textEl: HTMLElement;
   protected buttonEl: HTMLButtonElement;
-
-  protected _id = '';
-  protected _inBasket = false;
-  protected _available = true;
 
   constructor(container: HTMLElement, protected events: IEvents) {
     super(container);
@@ -34,16 +29,12 @@ export class CardPreview extends Card<CardPreviewState> {
     this.buttonEl = ensureElement<HTMLButtonElement>('.card__button', this.container);
 
     this.buttonEl.addEventListener('click', () => {
-      if (!this._available) {
+      if (this.buttonEl.disabled) {
         return;
       }
 
-      this.events.emit(AppEvents.CardAction, { id: this._id });
+      this.events.emit(AppEvents.CardAction);
     });
-  }
-
-  set id(value: string) {
-    this._id = value;
   }
 
   set title(value: string) {
@@ -65,22 +56,20 @@ export class CardPreview extends Card<CardPreviewState> {
     this.imageEl.src = value;
   }
 
-  set inBasket(value: boolean) {
-    this._inBasket = value;
-    if (this._available) {
-      this.buttonEl.textContent = value ? 'Удалить из корзины' : 'Купить';
+  set price(value: number | null) {
+    if (value === null) {
+      this.priceEl.textContent = 'Бесценно';
+      return;
     }
+
+    this.priceEl.textContent = `${value} синапсов`;
   }
 
-  set available(value: boolean) {
-    this._available = value;
-    this.buttonEl.disabled = !value;
+  set buttonText(value: string) {
+    this.buttonEl.textContent = value;
+  }
 
-    if (!value) {
-      this.buttonEl.textContent = 'Недоступно';
-      this.priceEl.textContent = 'Бесценно';
-    } else {
-      this.buttonEl.textContent = this._inBasket ? 'Удалить из корзины' : 'Купить';
-    }
+  set buttonDisabled(value: boolean) {
+    this.buttonEl.disabled = value;
   }
 }
